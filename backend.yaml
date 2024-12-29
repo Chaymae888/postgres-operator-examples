@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: postgres-operator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend-container
+        image: chaymae888/my-backend:1.2
+        ports:
+        - containerPort: 8080
+        env:
+          - name: PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: hippo-pguser-rhino
+                key: password
+          - name: DBNAME
+            valueFrom:
+              secretKeyRef:
+                name: hippo-pguser-rhino
+                key: dbname
+          - name: USER
+            valueFrom:
+              secretKeyRef:
+                name: hippo-pguser-rhino
+                key: user
+          - name: PORT
+            valueFrom:
+              secretKeyRef:
+                name: hippo-pguser-rhino
+                key: port
+          - name: HOST
+            valueFrom:
+              secretKeyRef:
+                name: hippo-pguser-rhino
+                key: host
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: postgres-operator
+spec:
+  selector:
+    app: backend
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  namespace: postgres-operator
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: backend-with-pgo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8080
